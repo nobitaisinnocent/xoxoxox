@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <!-- Include jQuery library -->
+    <script type="text/javascript" src="{{url_for('static', filename='jquery.min.js') }}"></script>
+    <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f5;
+            margin: 0;
+            padding: 0;
+        }
+
+        #header {
+            background-color: #283593;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #footer {
+            background-color: #283593;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #side {
+            padding: 20px;
+            width: 300px;
+            margin: 0 auto;
+        }
+
+        h4 {
+            color: #555;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            width: 200px;
+            height: 200px;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+            margin: 0 auto;
+            display: block;
+            cursor: crosshair;
+        }
+
+        button {
+            border: none;
+            border-radius: 2px;
+            padding: 12px 18px;
+            font-size: 16px;
+            text-transform: uppercase;
+            cursor: pointer;
+            color: white;
+            background-color: #4CAF50;
+            box-shadow: 0 0 4px #999;
+            outline: none;
+            margin-top: 20px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #clr {
+            background-color: #f44336;
+        }
+
+        #clr:hover {
+            background-color: #d32f2f;
+        }
+
+        h3 {
+            margin-top: 20px;
+            color: #000000;
+        }
+
+        #prediction {
+            color: #000000;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="header">
+        <h1>Handwritten Digit Recognition</h1>
+    </div>
+    <div class="container">
+        <div id="side">
+            <h4>Draw a Digit in the Center of the Box</h4>
+            <canvas id="can"></canvas>
+            <img id="canvasimg">
+            <div style="margin-top: 10px;">
+                <button class="ripple" id="btn" onclick="save()">Predict</button>
+                <button id="clr" onclick="erase()">Clear</button>
+                <h3 id="prediction">Prediction is: <span id="text"></span></h3>
+            </div>
+        </div>
+    </div>
+    <div id="footer">
+        <p>Developed by Sujay, Manoj, Santosh, Suresh, and Kowshika</p>
+    </div>
+    <script type="text/javascript">
+        var canvas, ctx, flag = false,
+            prevX = 0,
+            currX = 0,
+            prevY = 0,
+            currY = 0,
+            dot_flag = false;
+
+        var x = "red",
+            y = 8;
+
+        function init() {
+            // Initialize canvas and context
+            canvas = document.getElementById('can');
+            canvas.width = 200;
+            canvas.height = 200;
+            ctx = canvas.getContext("2d");
+            w = canvas.width;
+            h = canvas.height;
+
+            // Event listeners for mouse actions
+            canvas.addEventListener("mousemove", function (e) {
+                findxy('move', e)
+            }, false);
+            canvas.addEventListener("mousedown", function (e) {
+                findxy('down', e)
+            }, false);
+            canvas.addEventListener("mouseup", function (e) {
+                findxy('up', e)
+            }, false);
+            canvas.addEventListener("mouseout", function (e) {
+                findxy('out', e)
+            }, false);
+        }
+
+        function draw() {
+            // Draw line
+            ctx.beginPath();
+            ctx.moveTo(prevX, prevY);
+            ctx.lineTo(currX, currY);
+            ctx.strokeStyle = x;
+            ctx.lineWidth = y;
+            ctx.stroke();
+            ctx.closePath();
+        }
+
+        function erase() {
+            // Clear canvas
+            ctx.clearRect(0, 0, w, h);
+            document.getElementById("canvasimg").style.display = "none";
+            document.getElementById("prediction").style.display = "none";
+            b = document.getElementsByTagName("body")[0];
+            b.querySelectorAll('a').forEach(n => n.remove());
+        }
+
+        function save() {
+            // Save and predict
+            document.getElementById("prediction").style.display = "block";
+            var final_image = canvas.toDataURL();
+            var a = document.createElement('a');
+            a.href = final_image;
+            a.download = 'process.png';
+            document.body.appendChild(a);
+            $.ajax({
+                url: "{{ url_for('process') }}",
+                type: 'POST',
+                data: final_image,
+                success: function (response) {
+                    endresult = JSON.parse(JSON.stringify(response))
+                    console.log(endresult)
+                    $('#prediction').html('<span style="color:black;">Prediction is:</span> <span id="text">' + endresult.data + '</span>')
+                }
+            });
+        }
+
+        function findxy(res, e) {
+            if (res == 'down') {
+                prevX = currX;
+                prevY = currY;
+                currX = e.clientX - canvas.getBoundingClientRect().left;
+                currY = e.clientY - canvas.getBoundingClientRect().top;
+
+                flag = true;
+                dot_flag = true;
+                if (dot_flag) {
+                    ctx.beginPath();
+                    ctx.fillStyle = x;
+                    ctx.fillRect(currX, currY, 2, 2);
+                    ctx.closePath();
+                    dot_flag = false;
+                }
+            }
+            if (res == 'up' || res == "out") {
+                flag = false;
+            }
+            if (res == 'move') {
+                if (flag) {
+                    prevX = currX;
+                    prevY = currY;
+                    currX = e.clientX - canvas.getBoundingClientRect().left;
+                    currY = e.clientY - canvas.getBoundingClientRect().top;
+                    draw();
+                }
+            }
+        }
+
+        // Initialize canvas
+        init();
+    </script>
+</body>
+
+</html>
